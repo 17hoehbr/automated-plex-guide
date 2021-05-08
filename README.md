@@ -11,7 +11,7 @@ Here's the stack we'll be using. There will be a section describing the installa
 
 **Plex** is a "client-server media player system". There are a few alternatives, but I chose Plex here because they have a client available on nearly every platform.
 
-**Qbittorrent** is a torrent client. This can be substituted for Deluge or Transmission but I personally prefer Qbittorrent.
+**qBittorrent** is a torrent client. This can be substituted for Deluge or Transmission but I personally prefer qBittorrent.
 
 **Jackett** is a tool that Sonarr and Radarr use to search indexers and trackers for torrents
 
@@ -120,8 +120,6 @@ qbittorrent:
       - 8080:8080
     restart: unless-stopped
  ```
- 
-Notice how we mount our torrent drive on the container in the same location as the host, rather than something like /downloads (which is suggested over at linuxserver). This, plus the config below ensures Sonarr and Radarr send torrents to the right directory.
 
 # Jackett Docker Config
 
@@ -240,6 +238,7 @@ ombi         @ http://localhost:3579
 1. Navigate to qBittorrent Web UI at http://localhost:8080
 2. Click on Tools > Options
 3. Under the "Downloads" tab change "Default Save Path" to /downloads/completed
+4. Check the box next to "Keep incomplete torrents in:" Make sure it's set to /downloads/incomplete
 
 ### Change default login
 
