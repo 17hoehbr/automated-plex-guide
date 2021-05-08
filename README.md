@@ -96,7 +96,7 @@ Note that plex is looking for your config directory to contain a single director
 
 If you are on something other than Ubuntu, [refer to this page to find your configs.](https://support.plex.tv/articles/202915258-where-is-the-plex-media-server-data-directory-located/)
 
-# Qbittorrent Docker Config
+# qBittorrent Docker Config
 
 Add the following lines to ~/docker-services/docker-compose.yml under "services:"
 
@@ -122,8 +122,6 @@ qbittorrent:
  ```
  
 Notice how we mount our torrent drive on the container in the same location as the host, rather than something like /downloads (which is suggested over at linuxserver). This, plus the config below ensures Sonarr and Radarr send torrents to the right directory.
-
-Once Qbittorrent has started for the first time, it will make a settings.json file for you. Here are some changes you should make to the settings file. Come back here later to make these changes once everything is started, then run docker restart qbittorrent.
 
 # Jackett Docker Config
 
@@ -236,14 +234,28 @@ ombi         @ http://localhost:3579
 
 # Configuration
 ## qBittorrent
+
+### Set Download Directory
+
+1. Navigate to qBittorrent Web UI at http://localhost:8080
+2. Click on Tools > Options
+3. Under the "Downloads" tab change "Default Save Path" to /downloads/completed
+
+### Change default login
+
+By default the login to the web UI is just "admin" "adminadmin". Follow these steps to change it:
+
+1. Navigate to Tools > Options
+2. Under the "Downloads" tab scroll down to "Authentication"
+3. Enter a secure username and password.
+
 ### Bind qBittorrent to VPN
 
-```
 1. Navigate to qBittorrent Web UI at http://localhost:8080
 2. Click on Tool > Options
 3. Go to the Advanced tab
 4. Change Network interface from Any to tun0 (or whichever interface corresponds to your VPN)
-```
+
 ## Jackett
 ### Configure Jackett with your indexers
 
@@ -254,43 +266,49 @@ Login to the Jackett Web UI at http://localhost:9117. Once there click on "Add I
 
 Repeat for each indexor
 
-```
 1. Navigate to Settings > Indexers > Add > Torznab > Custom
 2. Enter an appropriate name for the indexor in the "Name" field
 3. Keep checkboxes set to default values
 4. Find the ocrresponding indexor in Jackett and click "Copy Torznab Feed" then paste into Sonnar/Radarr URL field.
 5. Refer to Jackett UI for API Key
 6. Select the categories that you would like to use this indexor for (I just select "TV" for any indexors in Sonarr and "Movies" for any indexors in Radarr)
-```
+
 
 ### Connect to qBittorrent
 
-```
 1. Navigate to Settings > Downloads Clients > Add
 2. Select "qBittorrent"
 3. Enter "qBittorrent" in the "Name" field
-4. Set host and port to the qBittorrent Web UI. If you followed this guide correctly the default values should be correct.
+4. Set host and port to the qBittorrent Web UI. If you followed this guide correctly the default values should be correct
 5. (Optional) Select SSL and follow the instructions next to the checkbox
-6. Enter the Username and Password for the webui. By default the username is "admin" and the password is "adminadmin"
+6. Enter the Username and Password for the webui
 7. Click "Save"
-```
+
 
 ### Set root directory
 
-```
 1. Navigate to Settings > Media Management
 2. Scroll to the bottom of the page and click on "Add Root Folder"
 3. Sonarr: Select /tv
 4. Radarr: Select /movies
-```
+
+### Create quality profile
+
+You will want to create a quality profile to specify what resolution you want your TV Shows and Movies to be.
+
+1. Navigate to Settings > Profiles
+3. Select the Any profile
+4. Check all qualities you would like to allow and uncheck all qualities you would like to disable. For example if you want your movie quality to cap out at 1080p to save disk space uncheck everything above Bluray-1080p. Sonarr/Radarr will prioritize the highest allowed resolution but will download lower allowed ones if it can't find it. (ex. if a TV show was only broadcasted it 480p Sonarr will first attempt to find a 1080p version but will resort to the 480p instead)
+5. (Optional) Allow upgrades by checking the "Upgrades Allowed" Checkbox. You can then change the "Upgrade Until" drop down to your prefered maximum resolution. This is useful for if you want your library to be entirely 1080p for example but the only torrent available for a specific show or movie is 720p. This way it will still download the 720p torrent but if a 1080p torrent ever comes along it will automatically download it and replace the 720p version.
+
 
 ### (Optional) File renaming
 
-```
+
 1. Navigate to Settings > Media Management
 2. Check the checkbox under "Rename Episodes/Movies"
 3. (Optional) Configure episode format by preference
-```
+
 ## Ombi
 
 ### Initial Setup
@@ -306,30 +324,36 @@ You will also need to create a local admin account.
 ### Connect Sonarr and Radarr
 
 **Sonarr:**
-```
+
 1. Navigate to Settings > TV > Sonarr
 2. Check "Enable" "V3" and "Scan for Availability"
 3. Enter hostname and port. If you followed this guide correctly it should just be localhost:8989
 4. Enter API key. You can find this in Sonarr under Settings > General
 5. Leave base URL blank unless you configured one in Sonarr
 6. Under Sonarr Interface click on "Load Qualities", "Load Folders", and "Load Languages"
-7. Select your prefered quality under Quality Profiles
+7. Select "Any" under Quality Profiles
 8. Select /tv under Default Root Folders
 9. Select your prefered languages under Language Profiles
-```
+
 
 **Radarr:**
 
-```
+
 1. Navigate to Settings > Movies > Radarr
 2. Check "Enable" "V3" and "Scan for Availability"
 3. Enter hostname and port. If you followed this guide correctly it should just be localhost:7878
 4. Enter API key. You can find this in Radarr under Settings > General
 5. Leave base URL blank unless you configured one in Radarr
 6. Under Radarr Interface click on "Load Profiles" and "Load Root Folders"
-7. Select your prefered quality under Quality Profiles
+7. Select "Any" under Quality Profiles
 8. Select /movies under Default Root Folders
 9. Select Physical / Web under Default Minimum Availability. Optionally you could select and earlier setting in case a movie gets leaked before being released to DVD but you will more often than not probably just get cam recordings.
-```
+
+### Create user profiles
+
+Finally you will want to create Ombi accounts for your users so they can submit requests. You can do this manually under the "User Management" tab, but that requires you to manually create an account for everyone connected to your Plex.
+
+Instead you can allow users to authenticate with their Plex login by going to Settings > Configuration > Authentication and selecting "Enable Plex OAuth". This way anyone who has access to your Plex can simply login with their Plex credentials and make requests.
+
 
  
