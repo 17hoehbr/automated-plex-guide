@@ -348,11 +348,20 @@ You will also need to create a local admin account.
 8. Select /movies under Default Root Folders
 9. Select Physical / Web under Default Minimum Availability. Optionally you could select and earlier setting in case a movie gets leaked before being released to DVD but you will more often than not probably just get cam recordings.
 
+### Connect Plex
+
+Settings > Media Server > Plex
+
+Fill out your Plex credentials on the right hand side and it should automatically fill the rest
+
+Then make sure to click "Load Libraries" and check all relevant ones.
+
 ### Create user profiles
 
 Finally you will want to create Ombi accounts for your users so they can submit requests. You can do this manually under the "User Management" tab, but that requires you to manually create an account for everyone connected to your Plex.
 
 Instead you can allow users to authenticate with their Plex login by going to Settings > Configuration > Authentication and selecting "Enable Plex OAuth". This way anyone who has access to your Plex can simply login with their Plex credentials and make requests.
+
 
 
  
