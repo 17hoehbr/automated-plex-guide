@@ -1,60 +1,48 @@
 # automated-plex-guide
-A complete guide to setting up a Plex home media server with automated requests/downloads
+A complete guide to setting up a Plex home media server with automated requests/downloads (WIP)
+
+Based on the [blog post](https://zacholland.net/a-complete-guide-to-setting-up-a-plex-home-media-server-with-automated-requests-downloads/) from Zac Holland. Most of the information is the same but I've added more details on the configuration side and will be adding an updated section on managing multiple HDDs.
 
 # Prerequisites
-This guide is written for Ubuntu 20.04.1 LTS. While I expect it to work on most distros since all of the services are just running in docker containers I have not tested it on other distros and cannot provide much support if you run into issues.
+This guide is written for Ubuntu Server 20.04.1 LTS. While I expect it to work on most distros since all of the services are just running in docker containers I have not tested it on other distros and cannot provide much support if you run into issues.
 
 # The Stack
 Here's the stack we'll be using. There will be a section describing the installation and configuration for each one of these :)
 
 **Docker** lets us run and isolate each of our services into a container. Everything for each of these services will live in the container except the configuration files which will live on our host.
 
-**Plex** is a "client-server media player system". There are a few alternatives, but I chose Plex here because they have a client available on nearly every platform.
+**Plex** is a "client-server media player system". This guide focuses on Plex as it's the most mature and has the best client support however I also plan on adding instructions for Jellyfin because it is open sourced.
 
-**qBittorrent** is a torrent client. This can be substituted for Deluge or Transmission but I personally prefer qBittorrent.
+**qBittorrent** is a torrent client. While you could use Transmission or Deluge instead I opted for qBittorrent because you can set it to only download from the VPN interface so you don't accidently expose yourself to your ISP.
 
 **Jackett** is a tool that Sonarr and Radarr use to search indexers and trackers for torrents
 
 **Sonarr** is a tool for automating and managing your TV library. It automates the process of searching for torrents, downloading them then "moving" them to your library. It also checks RSS feeds to automatically download new shows as soon as they're uploaded! 
 
-**Radarr** Is a fork of Sonarr that does all the same stuff but for Movies
+**Radarr** is a fork of Sonarr that does all the same stuff but for Movies
 
 **Ombi** is a super simple web UI for sending requests to Radarr and Sonarr
 
-# Tips for managing your hard drives (Optional)
+**Tautulli** (Optional) provides some neat analystics from Plex. Useful for analysing which content your users use the most.
 
-## Optimizing for Ratios
-
-If you want to use private trackers to get your torrents you will need to maintain a high seeding ratio. If you aren't familiar with this term, it basically means you should be uploading as much, if not more than you download.
-
-The best way I've found to do this is to mount your drives directly to the machine that handles your downloads. This means you can configure Sonarr and Radarr to create hardlinks when a torrent finishes. With this enabled, a reference to the data will exist in your media directory and in your torrent directory so Transmission can continue seeding everything you download.
-
-## HDD vs SSD
-
-Can also be written as Space vs. Reliability and Speed. I'm a freaking hoarder when it comes to media now, so I go with HDDs. This means I need to worry about my drives randomly dying.
-
-## HDD Backups vs. Redundancy
-
-HDDs are very prone to randomly dying and you need to prepare for this. One way you can prepare for this is to setup a RAID array. (Not covered in this guide)
 
 # Installing Docker
 
 This is an easy one :)
 
 ```
-sudo apt-get update
+sudo apt update
 sudo apt install docker.io
 sudo systemctl start docker
-sudo curl -L "https://github.com/docker/compose/releases/download/1.25.4/docker-compose-$(uname -s)-$(uname -m)" -o
-/usr/local/bin/docker-compose
+sudo curl -L "https://github.com/docker/compose/releases/download/1.25.4/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 sudo chmod +x /usr/local/bin/docker-compose
 ```
 
 I also like to keep my configs in one easy place in case I want to transfer them anywhere, so let’s create a folder to hold our docker container configs and create our docker-compose.yml file
 
 ```
-mkdir ~/docker-services
-touch ~/docker-services/docker-compose.yml
+mkdir ~/docker
+touch ~/docker/docker-compose.yml
 ```
 
 And add this to your docker-compose file. We will be filling in the services in the coming steps. If you are confused on how to add the services or how your file should look, [here is a good resource on docker-compose](https://docs.docker.com/compose/compose-file/compose-file-v2/).
@@ -68,7 +56,7 @@ services:
 
 # Plex Docker Config
 
-Add the following lines to ~/docker-services/docker-compose.yml under "services:"
+Add the following lines to ~/docker/docker-compose.yml under "services:"
 
 ```
   plex:
@@ -81,15 +69,18 @@ Add the following lines to ~/docker-services/docker-compose.yml under "services:
       - VERSION=docker
       - PLEX_CLAIM= #optional
     volumes:
-      - ~/docker-services/config/plex:/config
+      - ~/docker/config/plex:/config
       - /path/to/media:/media
     restart: unless-stopped
 ```
 
-This will start your Plex server on port 32400, and add the volumes ~/docker-services/plex/config and /path/to/media onto the container. Replace /path/to/media with your prefered location. If you are trying to move your current Plex configs over, run something like this
+This will start your Plex server on port 32400, and add the volumes ~/docker/plex/config and /path/to/media onto the container. Replace /path/to/media with your prefered location. Your media directory should contain subdirectories for each library, ex. subfolders names "TV" and "Movies".
+
+
+If you are trying to move your current Plex configs over, run something like this
 
 ```
-mv /var/lib/plexmediaserver/* ~/docker-services/plex/config/
+mv /var/lib/plexmediaserver/* ~/docker/plex/config/
 ```
 
 Note that plex is looking for your config directory to contain a single directory Library. Look for that directory and copy it over.
@@ -97,8 +88,6 @@ Note that plex is looking for your config directory to contain a single director
 If you are on something other than Ubuntu, [refer to this page to find your configs.](https://support.plex.tv/articles/202915258-where-is-the-plex-media-server-data-directory-located/)
 
 # qBittorrent Docker Config
-
-Add the following lines to ~/docker-services/docker-compose.yml under "services:"
 
 ```
 qbittorrent:
@@ -123,8 +112,6 @@ qbittorrent:
 
 # Jackett Docker Config
 
-Add the following lines to ~/docker-services/docker-compose.yml under "services:"
-
 ```
   jackett:
     image: ghcr.io/linuxserver/jackett
@@ -137,7 +124,7 @@ Add the following lines to ~/docker-services/docker-compose.yml under "services:
       - AUTO_UPDATE=true #optional
       - RUN_OPTS=<run options here> #optional
     volumes:
-      - ~/docker-services/config/jackett:/config
+      - ~/docker/config/jackett:/config
       - /path/to/downloadclient-downloads:/downloads
     ports:
       - 9117:9117
@@ -147,8 +134,6 @@ Add the following lines to ~/docker-services/docker-compose.yml under "services:
 This is super basic and just boots your Jackett service on port 9117. Doesn’t need much else!
 
 # Sonarr & Radarr Docker Config
-
-Add the following lines to ~/docker-services/docker-compose.yml under "services:"
 
 ```
   sonarr:
@@ -160,7 +145,7 @@ Add the following lines to ~/docker-services/docker-compose.yml under "services:
       - PGID=1000
       - TZ=EST
     volumes:
-      - ~/docker-services/config/sonarr:/config
+      - ~/docker/config/sonarr:/config
       - /path/to/tvseries:/tv
       - /path/to/downloadclient-downloads:/downloads
     ports:
@@ -175,7 +160,7 @@ Add the following lines to ~/docker-services/docker-compose.yml under "services:
       - PGID=1000
       - TZ=EST
     volumes:
-      - ~/docker-services/config/radarr:/config
+      - ~/docker/config/radarr:/config
       - /path/to/movies:/movies
       - /path/to/downloadclient-downloads:/downloads
     ports:
@@ -183,13 +168,11 @@ Add the following lines to ~/docker-services/docker-compose.yml under "services:
     restart: unless-stopped
  ```
  
-Now, these guys are freaking TRICKY. Make sure those PUID and GUID match the ID for your user and group… and make sure that user has read-write permissions for /mnt/media. Sonarr and Radarr are going to try to be creating folders and files in there when they copy or hard link files over.
+Now, these guys are freaking TRICKY. Make sure those PUID and GUID match the ID for your user and group… and make sure that user has read-write permissions for the media directories. Sonarr and Radarr are going to try to be creating folders and files in there when they copy or hard link files over.
 
 If you are running into issues, check the logs of the docker container or the logs in the web UI. It should tell you exactly where it’s having trouble. Then log into the user you set it to run as an attempt the same actions. See whats going on first hand.
 
 # Ombi Docker Config
-
-Add the following lines to ~/docker-services/docker-compose.yml under "services:"
 
 ```
   ombi:
@@ -202,7 +185,7 @@ Add the following lines to ~/docker-services/docker-compose.yml under "services:
       - TZ=EST
       - BASE_URL=/ombi #optional
     volumes:
-      - ~/docker-services/config/ombi:/config
+      - ~/docker/config/ombi:/config
     ports:
       - 3579:3579
     restart: unless-stopped
@@ -210,12 +193,30 @@ Add the following lines to ~/docker-services/docker-compose.yml under "services:
  
 This will open Ombi on port 3579 but sadly they don’t have SSL support by default. I can create a post on adding LetsEncrypt to this setup if it get’s enough traction!
 
+# Tautulli Docker Config
+
+```
+  tautulli:
+    image: ghcr.io/linuxserver/tautulli
+    container_name: tautulli
+    network_mode: "host"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=EST
+    volumes:
+      - ~/docker/config/tautulli:/config
+    ports:
+      - 8181:8181
+    restart: unless-stopped
+```
+
 # Start it up!
 
 Run this command to boot up all your services! Remember to go back and update your Transmission settings after this.
 
 ```
-cd ~/docker-services
+cd ~/docker
 docker-compose up -d
 ```
 
@@ -231,6 +232,13 @@ ombi         @ http://localhost:3579
 ```
 
 # Configuration
+
+## Plex
+
+1. Navigate to http://localhost:32400/web
+2. Follow the setup wizard
+3. Add libraries for TV and Movies. The library folders should be located at /media/movies and /media/tv.
+
 ## qBittorrent
 
 ### Set Download Directory
@@ -240,9 +248,9 @@ ombi         @ http://localhost:3579
 3. Under the "Downloads" tab change "Default Save Path" to /downloads/completed
 4. Check the box next to "Keep incomplete torrents in:" Make sure it's set to /downloads/incomplete
 
-### Change default login
+### Change default login (Optional)
 
-By default the login to the web UI is just "admin" "adminadmin". Follow these steps to change it:
+By default the login to the web UI is just "admin" "adminadmin". Personally I don't find it worth changing since qBittorrent is only accessible through my home network but if you plan on making it available remotely you might want to change it.
 
 1. Navigate to Tools > Options
 2. Under the "Downloads" tab scroll down to "Authentication"
@@ -250,15 +258,23 @@ By default the login to the web UI is just "admin" "adminadmin". Follow these st
 
 ### Bind qBittorrent to VPN
 
+By binding qBittorrent to the VPN network interface you don't have to worry about torrents accidently slipping through to your ISP. With this enabled your downloads will automatically stop if you disconenct from your VPN instead of defaulting to your ISP's network.
+
+This of course requires an active VPN subscription and for your server to be connected to it (Not covered in this guide)
+
 1. Navigate to qBittorrent Web UI at http://localhost:8080
 2. Click on Tool > Options
 3. Go to the Advanced tab
-4. Change Network interface from Any to tun0 (or whichever interface corresponds to your VPN)
+4. Change Network interface from Any to the interface corresponding to your VPN (most likely tun0)
 
 ## Jackett
 ### Configure Jackett with your indexers
 
-Login to the Jackett Web UI at http://localhost:9117. Once there click on "Add Indexer" and find your favorite torrenting sites. Personally I like to use 1337x, The Pirate Bay, and RARGB. Once you find the indexor you would like to setup click on the green plus button on the right. If you choose a private tracker you will first have to login with your credentials.
+Login to the Jackett Web UI at http://localhost:9117.
+
+Once there click on "Add Indexer" and find your favorite torrenting sites. Personally I like to use Kick Ass Torrents, 1337x, The Pirate Bay, and RARGB.
+
+Once you find the indexor you would like to setup click on the green plus button on the right. If you choose a private tracker you will first have to login with your credentials.
 
 ## Sonarr / Radarr
 ### Adding a Jackett indexer
@@ -279,9 +295,8 @@ Repeat for each indexor
 2. Select "qBittorrent"
 3. Enter "qBittorrent" in the "Name" field
 4. Set host and port to the qBittorrent Web UI. If you followed this guide correctly the default values should be correct
-5. (Optional) Select SSL and follow the instructions next to the checkbox
-6. Enter the Username and Password for the webui
-7. Click "Save"
+5. Enter the Username and Password for the webui
+6. Click "Save"
 
 
 ### Set root directory
@@ -297,12 +312,13 @@ You will want to create a quality profile to specify what resolution you want yo
 
 1. Navigate to Settings > Profiles
 3. Select the Any profile
-4. Check all qualities you would like to allow and uncheck all qualities you would like to disable. For example if you want your movie quality to cap out at 1080p to save disk space uncheck everything above Bluray-1080p. Sonarr/Radarr will prioritize the highest allowed resolution but will download lower allowed ones if it can't find it. (ex. if a TV show was only broadcasted it 480p Sonarr will first attempt to find a 1080p version but will resort to the 480p instead)
-5. (Optional) Allow upgrades by checking the "Upgrades Allowed" Checkbox. You can then change the "Upgrade Until" drop down to your prefered maximum resolution. This is useful for if you want your library to be entirely 1080p for example but the only torrent available for a specific show or movie is 720p. This way it will still download the 720p torrent but if a 1080p torrent ever comes along it will automatically download it and replace the 720p version.
+4. Check all qualities you would like to allow and uncheck all qualities you would like to disable. For example if you want your movie quality to cap out at 1080p to save disk space uncheck everything above Bluray-1080p. Sonarr/Radarr will prioritize the highest allowed resolution but will download lower allowed ones if it can't find it.
+5. (Optional) Allow upgrades by checking the "Upgrades Allowed" Checkbox. You can then change the "Upgrade Until" drop down to your prefered maximum resolution. This is useful for if you want your library to be entirely 1080p but the only torrent available for a specific show or movie is 720p. This way it will still download the 720p torrent but if a 1080p torrent ever comes along it will automatically download it and replace the 720p version.
 
 
 ### (Optional) File renaming
 
+I like having this setting enabled to keep my media folders nice and organized.
 
 1. Navigate to Settings > Media Management
 2. Check the checkbox under "Rename Episodes/Movies"
@@ -362,6 +378,13 @@ Finally you will want to create Ombi accounts for your users so they can submit 
 
 Instead you can allow users to authenticate with their Plex login by going to Settings > Configuration > Authentication and selecting "Enable Plex OAuth". This way anyone who has access to your Plex can simply login with their Plex credentials and make requests.
 
+## Tautulli (Optional)
 
+Navigate to http://localhost:8181 and follow the setup wizard.
 
- 
+1. Create a local admin account
+2. Sign in with Plex
+3. Select your Plex server from the drop down. The rest of the settings should autofill. You can optionally select use secure connection but I'm not really sure what difference it makes since they're both on the same network anyway. Press verify and next.
+4. The rest of the settings can be left as default
+
+Once the setup is complete you can login with either the local account you made earlier or your Plex account.
