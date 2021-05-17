@@ -1,0 +1,106 @@
+---
+version: "2.1"
+services:
+  plex:
+    image: ghcr.io/linuxserver/plex
+    container_name: plex
+    network_mode: host
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - VERSION=docker
+      - PLEX_CLAIM= #optional
+    volumes:
+      - ~/docker/config/plex:/config
+      - /path/to/media:/media
+    restart: unless-stopped
+qbittorrent:
+    image: ghcr.io/linuxserver/qbittorrent
+    container_name: qbittorrent
+    network_mode: "host"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America\New_York
+      - UMASK_SET=022
+      - WEBUI_PORT=8080
+    volumes:
+      - ~/docker/config/qbittorrent:/config
+      - /path/to/qbittorrent-downloads:/downloads
+    ports:
+      - 6881:6881
+      - 6881:6881/udp
+      - 8080:8080
+    restart: unless-stopped
+  jackett:
+    image: ghcr.io/linuxserver/jackett
+    container_name: jackett
+    network_mode: "host"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=EST
+      - AUTO_UPDATE=true #optional
+      - RUN_OPTS=<run options here> #optional
+    volumes:
+      - ~/docker/config/jackett:/config
+    ports:
+      - 9117:9117
+    restart: unless-stopped
+  sonarr:
+    image: ghcr.io/linuxserver/sonarr
+    container_name: sonarr
+    network_mode: "host"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=EST
+    volumes:
+      - ~/docker/config/sonarr:/config
+      - /path/to/media/tv:/tv
+      - /path/to/qbittorrent-downloads:/downloads
+    ports:
+      - 8989:8989
+    restart: unless-stopped
+  radarr:
+    image: ghcr.io/linuxserver/radarr
+    container_name: radarr
+    network_mode: "host"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=EST
+    volumes:
+      - ~/docker/config/radarr:/config
+      - /path/to/media/movies:/movies
+      - /path/to/qbittorrent-downloads:/downloads
+    ports:
+      - 7878:7878
+    restart: unless-stopped
+  ombi:
+    image: ghcr.io/linuxserver/ombi
+    container_name: ombi
+    network_mode: "host"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=EST
+      - BASE_URL=/ombi #optional
+    volumes:
+      - ~/docker/config/ombi:/config
+    ports:
+      - 3579:3579
+    restart: unless-stopped
+  tautulli:
+    image: ghcr.io/linuxserver/tautulli
+    container_name: tautulli
+    network_mode: "host"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=EST
+    volumes:
+      - ~/docker/config/tautulli:/config
+    ports:
+      - 8181:8181
+    restart: unless-stopped
