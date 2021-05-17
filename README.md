@@ -1,5 +1,5 @@
-# automated-plex-guide
-A complete guide to setting up a Plex home media server with automated requests/downloads (WIP)
+# automated-plex-guide (WIP)
+A complete guide to setting up a Plex home media server with automated requests/downloads
 
 Based on the [blog post](https://zacholland.net/a-complete-guide-to-setting-up-a-plex-home-media-server-with-automated-requests-downloads/) from Zac Holland. Most of the information is the same but I've added more details on the configuration side and will be adding an updated section on managing multiple HDDs.
 
@@ -21,7 +21,7 @@ Here's the stack we'll be using. There will be a section describing the installa
 
 **Radarr** is a fork of Sonarr that does all the same stuff but for Movies
 
-**Ombi** is a super simple web UI for sending requests to Radarr and Sonarr
+**Ombi** (Optional) is a super simple web UI for allowing your users to send requests to Radarr and Sonarr
 
 **Tautulli** (Optional) provides some neat analystics from Plex. Useful for analysing which content your users use the most.
 
@@ -74,13 +74,15 @@ Add the following lines to ~/docker/docker-compose.yml under "services:"
     restart: unless-stopped
 ```
 
-This will start your Plex server on port 32400, and add the volumes ~/docker/plex/config and /path/to/media onto the container. Replace /path/to/media with your prefered location. Your media directory should contain subdirectories for each library, ex. subfolders names "TV" and "Movies".
+This will start your Plex server on port 32400, and add the volumes ~/docker/config/plex and /path/to/media onto the container.
+
+Replace /path/to/media to your media directory. Your media directory should contain subdirectories labelled "tv" and "movies".
 
 
 If you are trying to move your current Plex configs over, run something like this
 
 ```
-mv /var/lib/plexmediaserver/* ~/docker/plex/config/
+mv /var/lib/plexmediaserver/* ~/docker/config/plex/
 ```
 
 Note that plex is looking for your config directory to contain a single directory Library. Look for that directory and copy it over.
@@ -101,14 +103,16 @@ qbittorrent:
       - UMASK_SET=022
       - WEBUI_PORT=8080
     volumes:
-      - ~/docker-services/config/qbittorrent:/config
-      - /path/to/downloadclient-downloads:/downloads
+      - ~/docker/config/qbittorrent:/config
+      - /path/to/qbittorrent-downloads:/downloads
     ports:
       - 6881:6881
       - 6881:6881/udp
       - 8080:8080
     restart: unless-stopped
  ```
+
+Replace /path/to/qbittorrent-downloads with the directory you would like qBittorrent to store downloads.
 
 # Jackett Docker Config
 
@@ -125,7 +129,6 @@ qbittorrent:
       - RUN_OPTS=<run options here> #optional
     volumes:
       - ~/docker/config/jackett:/config
-      - /path/to/downloadclient-downloads:/downloads
     ports:
       - 9117:9117
     restart: unless-stopped
@@ -146,8 +149,8 @@ This is super basic and just boots your Jackett service on port 9117. Doesn’t 
       - TZ=EST
     volumes:
       - ~/docker/config/sonarr:/config
-      - /path/to/tvseries:/tv
-      - /path/to/downloadclient-downloads:/downloads
+      - /path/to/media/tv:/tv
+      - /path/to/qbittorrent-downloads:/downloads
     ports:
       - 8989:8989
     restart: unless-stopped
@@ -161,14 +164,17 @@ This is super basic and just boots your Jackett service on port 9117. Doesn’t 
       - TZ=EST
     volumes:
       - ~/docker/config/radarr:/config
-      - /path/to/movies:/movies
-      - /path/to/downloadclient-downloads:/downloads
+      - /path/to/media/movies:/movies
+      - /path/to/qbittorrent-downloads:/downloads
     ports:
       - 7878:7878
     restart: unless-stopped
  ```
- 
-Now, these guys are freaking TRICKY. Make sure those PUID and GUID match the ID for your user and group… and make sure that user has read-write permissions for the media directories. Sonarr and Radarr are going to try to be creating folders and files in there when they copy or hard link files over.
+Replace /path/to/media/tv & /path/to/media/movies with the directories you created during the Plex docker setup. Replace /path/to/qbittorrent-downloads with the directory you created during the qBittorrent docker setup.
+
+Make sure those PUID and GUID match the ID for your user and group. You can find these by simply typing "id" into terminal. If they don't match simply replace the PUID and GUID in the docker compose script with the ones you found in terminal.
+
+Also make sure that user has read-write permissions for the media directories. Sonarr and Radarr are going to try to be creating folders and files in there when they copy or hard link files over. You can do this with the following command: ```chmod -r +rw /path/to/media```
 
 If you are running into issues, check the logs of the docker container or the logs in the web UI. It should tell you exactly where it’s having trouble. Then log into the user you set it to run as an attempt the same actions. See whats going on first hand.
 
@@ -211,6 +217,8 @@ This will open Ombi on port 3579 but sadly they don’t have SSL support by defa
     restart: unless-stopped
 ```
 
+Super simple, no configuration required.
+
 # Start it up!
 
 Run this command to boot up all your services! Remember to go back and update your Transmission settings after this.
@@ -229,6 +237,7 @@ jackett      @ http://localhost:9117
 qbittorrent  @ http://localhost:8080
 plex         @ http://localhost:32400
 ombi         @ http://localhost:3579
+tautulli     @ http://localhost:8181
 ```
 
 # Configuration
@@ -316,7 +325,7 @@ You will want to create a quality profile to specify what resolution you want yo
 5. (Optional) Allow upgrades by checking the "Upgrades Allowed" Checkbox. You can then change the "Upgrade Until" drop down to your prefered maximum resolution. This is useful for if you want your library to be entirely 1080p but the only torrent available for a specific show or movie is 720p. This way it will still download the 720p torrent but if a 1080p torrent ever comes along it will automatically download it and replace the 720p version.
 
 
-### (Optional) File renaming
+### File renaming (Optional)
 
 I like having this setting enabled to keep my media folders nice and organized.
 
