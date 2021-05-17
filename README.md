@@ -1,5 +1,5 @@
-# automated-plex-guide (WIP)
-A complete guide to setting up a Plex home media server with automated requests/downloads
+# automated-media-server-guide (WIP)
+A complete guide to setting up a home media server with automated requests/downloads
 
 Based on the [blog post](https://zacholland.net/a-complete-guide-to-setting-up-a-plex-home-media-server-with-automated-requests-downloads/) from Zac Holland. Most of the information is the same but I've added more details on the configuration side and will be adding an updated section on managing multiple HDDs.
 
@@ -11,7 +11,9 @@ Here's the stack we'll be using. There will be a section describing the installa
 
 **Docker** lets us run and isolate each of our services into a container. Everything for each of these services will live in the container except the configuration files which will live on our host.
 
-**Plex** is a "client-server media player system". This guide focuses on Plex as it's the most mature and has the best client support however I also plan on adding instructions for Jellyfin because it is open sourced.
+**Plex** is a "client-server media player system". Plex is overall the most mature media server at the moment but some features are locked behind the paid Plex Pass.
+
+**Jellyfin** is a completely open sourced alternative to Plex. The interface is not quite as polished and client support is slightly limited, however all of it's features are completely free and users can contribute to or modify the code as they see fit. This can allow for implementation of features or changes to the server that could not be achieved with Plex.
 
 **qBittorrent** is a torrent client. While you could use Transmission or Deluge instead I opted for qBittorrent because you can set it to only download from the VPN interface so you don't accidently expose yourself to your ISP.
 
@@ -56,6 +58,8 @@ services:
 
 # Plex Docker Config
 
+**Use only Plex OR Jellyfin**
+
 Add the following lines to ~/docker/docker-compose.yml under "services:"
 
 ```
@@ -88,6 +92,32 @@ mv /var/lib/plexmediaserver/* ~/docker/config/plex/
 Note that plex is looking for your config directory to contain a single directory Library. Look for that directory and copy it over.
 
 If you are on something other than Ubuntu, [refer to this page to find your configs.](https://support.plex.tv/articles/202915258-where-is-the-plex-media-server-data-directory-located/)
+
+# Jellyfin Docker Config
+
+**Use only Plex OR Jellyfin**
+
+Add the following lines to ~/docker/docker-compose.yml under "services:"
+
+```
+  jellyfin:
+    image: ghcr.io/linuxserver/jellyfin
+    container_name: jellyfin
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=EST
+    volumes:
+      - ~/docker/config/jellyfin:/config
+      - /path/to/media:/media
+    ports:
+      - 8096:8096
+    restart: unless-stopped
+```
+
+This will start your Jellyfin server on port 8096, and add the volumes ~/docker/config/jellyfin and /path/to/media onto the container.
+
+Replace /path/to/media to your media directory. Your media directory should contain subdirectories labelled "tv" and "movies".
 
 # qBittorrent Docker Config
 
@@ -235,7 +265,7 @@ sonarr       @ http://localhost:8989
 radarr       @ http://localhost:7878
 jackett      @ http://localhost:9117
 qbittorrent  @ http://localhost:8080
-plex         @ http://localhost:32400
+plex         @ http://localhost:32400 / jellyfin    @ http://localhost:8096
 ombi         @ http://localhost:3579
 tautulli     @ http://localhost:8181
 ```
@@ -247,6 +277,13 @@ tautulli     @ http://localhost:8181
 1. Navigate to http://localhost:32400/web
 2. Follow the setup wizard
 3. Add libraries for TV and Movies. The library folders should be located at /media/movies and /media/tv.
+
+## Jellyfin
+
+1. Navigate to http://localhost:8096
+2. Follow the setup wizard
+3. Add libraries for TV and Movies. The library folders should be located at /media/movies and /media/tv.
+
 
 ## qBittorrent
 
@@ -378,6 +415,14 @@ You will also need to create a local admin account.
 Settings > Media Server > Plex
 
 Fill out your Plex credentials on the right hand side and it should automatically fill the rest
+
+Then make sure to click "Load Libraries" and check all relevant ones.
+
+### Connect Jellyfin
+
+Settings > Media Server > Jellyfin
+
+Click Add Server
 
 Then make sure to click "Load Libraries" and check all relevant ones.
 
