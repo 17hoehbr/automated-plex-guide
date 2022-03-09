@@ -1,6 +1,6 @@
 # automated-media-server-guide (WIP)
 
-# Very outdated, might update eventually
+# In the process of updating
 
 A complete guide to setting up a home media server with automated requests/downloads
 
@@ -14,21 +14,23 @@ Here's the stack we'll be using. There will be a section describing the installa
 
 **Docker** lets us run and isolate each of our services into a container. Everything for each of these services will live in the container except the configuration files which will live on our host.
 
-**Plex** is a "client-server media player system". Plex is overall the most mature media server at the moment but some features are locked behind the paid Plex Pass.
-
 **Jellyfin** is a completely open sourced alternative to Plex. The interface is not quite as polished and client support is slightly limited, however all of it's features are completely free and users can contribute to or modify the code as they see fit. This can allow for implementation of features or changes to the server that could not be achieved with Plex.
 
-**qBittorrent** is a torrent client. While you could use Transmission or Deluge instead I opted for qBittorrent because you can set it to only download from the VPN interface so you don't accidently expose yourself to your ISP.
+**qBittorrent** is a torrent client. Transmission and Deluge are also popular choices but I chose qBittorrent because you can easily configure it to only operate over the VPN connection.
 
-**Jackett** is a tool that Sonarr and Radarr use to search indexers and trackers for torrents
+**Prowlarr** is a tool that Sonarr and Radarr use to search indexers and trackers for torrents
 
 **Sonarr** is a tool for automating and managing your TV library. It automates the process of searching for torrents, downloading them then "moving" them to your library. It also checks RSS feeds to automatically download new shows as soon as they're uploaded! 
 
 **Radarr** is a fork of Sonarr that does all the same stuff but for Movies
 
-**Ombi** (Optional) is a super simple web UI for allowing your users to send requests to Radarr and Sonarr
+## Optional
 
-**Tautulli** (Optional) provides some neat analystics from Plex. Useful for analysing which content your users use the most.
+**Ombi** is a super simple web UI for allowing your users to send requests to Radarr and Sonarr
+
+**jfa-go** is a user manager for Jellyfin that allows your users to sign up via an invite code and reset their passwords
+
+**Organizr** is a dashboard for keeping track all of these web services
 
 
 # Installing Docker
@@ -59,46 +61,7 @@ services:
 
 ```
 
-# Plex Docker Config
-
-**Use only Plex OR Jellyfin**
-
-Add the following lines to ~/docker/docker-compose.yml under "services:"
-
-```
-  plex:
-    image: ghcr.io/linuxserver/plex
-    container_name: plex
-    network_mode: host
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - VERSION=docker
-      - PLEX_CLAIM= #optional
-    volumes:
-      - ~/docker/config/plex:/config
-      - /path/to/media:/media
-    restart: unless-stopped
-```
-
-This will start your Plex server on port 32400, and add the volumes ~/docker/config/plex and /path/to/media onto the container.
-
-Replace /path/to/media to your media directory. Your media directory should contain subdirectories labelled "tv" and "movies".
-
-
-If you are trying to move your current Plex configs over, run something like this
-
-```
-mv /var/lib/plexmediaserver/* ~/docker/config/plex/
-```
-
-Note that plex is looking for your config directory to contain a single directory Library. Look for that directory and copy it over.
-
-If you are on something other than Ubuntu, [refer to this page to find your configs.](https://support.plex.tv/articles/202915258-where-is-the-plex-media-server-data-directory-located/)
-
 # Jellyfin Docker Config
-
-**Use only Plex OR Jellyfin**
 
 Add the following lines to ~/docker/docker-compose.yml under "services:"
 
@@ -122,13 +85,17 @@ This will start your Jellyfin server on port 8096, and add the volumes ~/docker/
 
 Replace /path/to/media to your media directory. Your media directory should contain subdirectories labelled "tv" and "movies".
 
+Make sure those PUID and GUID match the ID for your user and group. You can find these by simply typing "id" into terminal. If they don't match simply replace the PUID and GUID in the docker compose script with the ones you found in terminal.
+
+
 # qBittorrent Docker Config
+
+# Note to self: update with VPN configuration
 
 ```
 qbittorrent:
     image: ghcr.io/linuxserver/qbittorrent
     container_name: qbittorrent
-    network_mode: "host"
     environment:
       - PUID=1000
       - PGID=1000
@@ -147,27 +114,30 @@ qbittorrent:
 
 Replace /path/to/qbittorrent-downloads with the directory you would like qBittorrent to store downloads.
 
-# Jackett Docker Config
+Make sure those PUID and GUID match the ID for your user and group. You can find these by simply typing "id" into terminal. If they don't match simply replace the PUID and GUID in the docker compose script with the ones you found in terminal.
+
+
+# Prowlarr Docker Config
 
 ```
-  jackett:
-    image: ghcr.io/linuxserver/jackett
-    container_name: jackett
-    network_mode: "host"
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:develop
+    container_name: prowlarr
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=EST
-      - AUTO_UPDATE=true #optional
-      - RUN_OPTS=<run options here> #optional
+      - TZ=America/New_York
     volumes:
-      - ~/docker/config/jackett:/config
+      - ~/docker/config/prowlarr:/config
     ports:
-      - 9117:9117
+      - 9696:9696
     restart: unless-stopped
 ```
 
-This is super basic and just boots your Jackett service on port 9117. Doesn’t need much else!
+This is super basic and just boots your Prowlarr service on port 9696. Doesn’t need much else!
+
+Make sure those PUID and GUID match the ID for your user and group. You can find these by simply typing "id" into terminal. If they don't match simply replace the PUID and GUID in the docker compose script with the ones you found in terminal.
+
 
 # Sonarr & Radarr Docker Config
 
@@ -175,7 +145,6 @@ This is super basic and just boots your Jackett service on port 9117. Doesn’t 
   sonarr:
     image: ghcr.io/linuxserver/sonarr
     container_name: sonarr
-    network_mode: "host"
     environment:
       - PUID=1000
       - PGID=1000
@@ -190,7 +159,6 @@ This is super basic and just boots your Jackett service on port 9117. Doesn’t 
   radarr:
     image: ghcr.io/linuxserver/radarr
     container_name: radarr
-    network_mode: "host"
     environment:
       - PUID=1000
       - PGID=1000
@@ -217,7 +185,6 @@ If you are running into issues, check the logs of the docker container or the lo
   ombi:
     image: ghcr.io/linuxserver/ombi
     container_name: ombi
-    network_mode: "host"
     environment:
       - PUID=1000
       - PGID=1000
@@ -229,32 +196,14 @@ If you are running into issues, check the logs of the docker container or the lo
       - 3579:3579
     restart: unless-stopped
  ```
- 
-This will open Ombi on port 3579 but sadly they don’t have SSL support by default. I can create a post on adding LetsEncrypt to this setup if it get’s enough traction!
 
-# Tautulli Docker Config
+Make sure those PUID and GUID match the ID for your user and group. You can find these by simply typing "id" into terminal. If they don't match simply replace the PUID and GUID in the docker compose script with the ones you found in terminal.
 
-```
-  tautulli:
-    image: ghcr.io/linuxserver/tautulli
-    container_name: tautulli
-    network_mode: "host"
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=EST
-    volumes:
-      - ~/docker/config/tautulli:/config
-    ports:
-      - 8181:8181
-    restart: unless-stopped
-```
-
-Super simple, no configuration required.
+This will open Ombi on port 3579. Use a reverse proxy such as nginx to make it accessible outside of your local network.
 
 # Start it up!
 
-Run this command to boot up all your services! Remember to go back and update your Transmission settings after this.
+Run this command to boot up all your services! Remember to go back and update your qBittorrent settings after this.
 
 ```
 cd ~/docker
@@ -266,27 +215,19 @@ You now have these services running locally. Go to their web UI’s and configur
 ```
 sonarr       @ http://localhost:8989
 radarr       @ http://localhost:7878
-jackett      @ http://localhost:9117
+prowlarr     @ http://localhost:9696
 qbittorrent  @ http://localhost:8080
-plex         @ http://localhost:32400 / jellyfin    @ http://localhost:8096
+jellyfin     @ http://localhost:8096
 ombi         @ http://localhost:3579
-tautulli     @ http://localhost:8181
 ```
 
 # Configuration
-
-## Plex
-
-1. Navigate to http://localhost:32400/web
-2. Follow the setup wizard
-3. Add libraries for TV and Movies. The library folders should be located at /media/movies and /media/tv.
 
 ## Jellyfin
 
 1. Navigate to http://localhost:8096
 2. Follow the setup wizard
 3. Add libraries for TV and Movies. The library folders should be located at /media/movies and /media/tv.
-
 
 ## qBittorrent
 
@@ -296,14 +237,6 @@ tautulli     @ http://localhost:8181
 2. Click on Tools > Options
 3. Under the "Downloads" tab change "Default Save Path" to /downloads/completed
 4. Check the box next to "Keep incomplete torrents in:" Make sure it's set to /downloads/incomplete
-
-### Change default login (Optional)
-
-By default the login to the web UI is just "admin" "adminadmin". Personally I don't find it worth changing since qBittorrent is only accessible through my home network but if you plan on making it available remotely you might want to change it.
-
-1. Navigate to Tools > Options
-2. Under the "Downloads" tab scroll down to "Authentication"
-3. Enter a secure username and password.
 
 ### Bind qBittorrent to VPN
 
@@ -316,27 +249,19 @@ This of course requires an active VPN subscription and for your server to be con
 3. Go to the Advanced tab
 4. Change Network interface from Any to the interface corresponding to your VPN (most likely tun0)
 
-## Jackett
-### Configure Jackett with your indexers
+### Change default login (Optional)
 
-Login to the Jackett Web UI at http://localhost:9117.
+By default the login to the web UI is just "admin" "adminadmin". Personally I don't find it worth changing since qBittorrent is only accessible through my home network but if you plan on making it available remotely you might want to change it.
 
-Once there click on "Add Indexer" and find your favorite torrenting sites. Personally I like to use Kick Ass Torrents, 1337x, The Pirate Bay, and RARGB.
+1. Navigate to Tools > Options
+2. Under the "Downloads" tab scroll down to "Authentication"
+3. Enter a secure username and password.
 
-Once you find the indexor you would like to setup click on the green plus button on the right. If you choose a private tracker you will first have to login with your credentials.
+## Prowlarr
+
+Coming soon
 
 ## Sonarr / Radarr
-### Adding a Jackett indexer
-
-Repeat for each indexor
-
-1. Navigate to Settings > Indexers > Add > Torznab > Custom
-2. Enter an appropriate name for the indexor in the "Name" field
-3. Keep checkboxes set to default values
-4. Find the ocrresponding indexor in Jackett and click "Copy Torznab Feed" then paste into Sonnar/Radarr URL field.
-5. Refer to Jackett UI for API Key
-6. Select the categories that you would like to use this indexor for (I just select "TV" for any indexors in Sonarr and "Movies" for any indexors in Radarr)
-
 
 ### Connect to qBittorrent
 
@@ -413,13 +338,6 @@ You will also need to create a local admin account.
 8. Select /movies under Default Root Folders
 9. Select Physical / Web under Default Minimum Availability. Optionally you could select and earlier setting in case a movie gets leaked before being released to DVD but you will more often than not probably just get cam recordings.
 
-### Connect Plex
-
-Settings > Media Server > Plex
-
-Fill out your Plex credentials on the right hand side and it should automatically fill the rest
-
-Then make sure to click "Load Libraries" and check all relevant ones.
 
 ### Connect Jellyfin
 
@@ -435,13 +353,5 @@ Finally you will want to create Ombi accounts for your users so they can submit 
 
 Instead you can allow users to authenticate with their Plex login by going to Settings > Configuration > Authentication and selecting "Enable Plex OAuth". This way anyone who has access to your Plex can simply login with their Plex credentials and make requests.
 
-## Tautulli (Optional)
-
-Navigate to http://localhost:8181 and follow the setup wizard.
-
-1. Create a local admin account
-2. Sign in with Plex
-3. Select your Plex server from the drop down. The rest of the settings should autofill. You can optionally select use secure connection but I'm not really sure what difference it makes since they're both on the same network anyway. Press verify and next.
-4. The rest of the settings can be left as default
 
 Once the setup is complete you can login with either the local account you made earlier or your Plex account.
