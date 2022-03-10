@@ -7,7 +7,7 @@ A complete guide to setting up a home media server with automated requests/downl
 Based on the [blog post](https://zacholland.net/a-complete-guide-to-setting-up-a-plex-home-media-server-with-automated-requests-downloads/) from Zac Holland. Most of the information is the same but I've added more details on the configuration side and will be adding an updated section on managing multiple HDDs.
 
 # Prerequisites
-This guide is written for Ubuntu Server 20.04.1 LTS. While I expect it to work on most distros since all of the services are just running in docker containers I have not tested it on other distros and cannot provide much support if you run into issues.
+This guide is written for Ubuntu Server 21.10. Most of it should work just fine on any distro, but if you're using a non-debian distro you'll have to look up distro-specific instructions for installing docker. Once installed though the rest of the guide should still work.
 
 # The Stack
 Here's the stack we'll be using. There will be a section describing the installation and configuration for each one of these :)
@@ -17,6 +17,8 @@ Here's the stack we'll be using. There will be a section describing the installa
 **Jellyfin** is a completely open sourced alternative to Plex. The interface is not quite as polished and client support is slightly limited, however all of it's features are completely free and users can contribute to or modify the code as they see fit. This can allow for implementation of features or changes to the server that could not be achieved with Plex.
 
 **qBittorrent** is a torrent client. Transmission and Deluge are also popular choices but I chose qBittorrent because you can easily configure it to only operate over the VPN connection.
+
+**openvpn-client** is a VPN running in docker. This will allow you to connect the qBittorrent container to your VPN without having to put your entire system behind it
 
 **Prowlarr** is a tool that Sonarr and Radarr use to search indexers and trackers for torrents
 
@@ -32,20 +34,33 @@ Here's the stack we'll be using. There will be a section describing the installa
 
 **Organizr** is a dashboard for keeping track all of these web services
 
+**Bazarr** is a tool for Sonarr and Radarr to download subtitles for your content
+
+**nginx-proxy-manager** is a simple reverse proxy service for making Jellyfin accessible outside of your local network
+
+**Tdarr** is a tool for transcoding media files
 
 # Installing Docker
 
-This is an easy one :)
 
 ```
 sudo apt update
-sudo apt install docker.io
-sudo systemctl start docker
-sudo curl -L "https://github.com/docker/compose/releases/download/1.25.4/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
+sudo apt install apt-transport-https ca-certificates curl gnupg-agent software-properties-common
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+sudo apt update
+sudo apt install docker-ce docker-ce-cli containerd.io
+sudo usermod -aG docker $USER
 ```
 
-I also like to keep my configs in one easy place in case I want to transfer them anywhere, so let’s create a folder to hold our docker container configs and create our docker-compose.yml file
+To verify that the docker installation was successful, run the following command:
+```
+docker container run hello-world
+```
+
+The output should look something like [this](https://linuxize.com/post/how-to-install-and-use-docker-on-ubuntu-20-04/docker-hello-world_hu0e93396502d67b4a7c43a5ce3cac5c2c_75442_768x0_resize_q75_lanczos.jpg)
+
+I also like to keep my configs in one easy place, so let’s create a folder to hold our docker container configs and create our docker-compose.yml file
 
 ```
 mkdir ~/docker
@@ -72,7 +87,6 @@ Add the following lines to ~/docker/docker-compose.yml under "services:"
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=EST
     volumes:
       - ~/docker/config/jellyfin:/config
       - /path/to/media:/media
@@ -87,6 +101,12 @@ Replace /path/to/media to your media directory. Your media directory should cont
 
 Make sure those PUID and GUID match the ID for your user and group. You can find these by simply typing "id" into terminal. If they don't match simply replace the PUID and GUID in the docker compose script with the ones you found in terminal.
 
+# VPN Docker Config
+
+These instructions will vary depending on your VPN provider.
+
+
+
 
 # qBittorrent Docker Config
 
@@ -99,22 +119,15 @@ qbittorrent:
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=America\New_York
-      - UMASK_SET=022
       - WEBUI_PORT=8080
     volumes:
       - ~/docker/config/qbittorrent:/config
       - /path/to/qbittorrent-downloads:/downloads
-    ports:
-      - 6881:6881
-      - 6881:6881/udp
-      - 8080:8080
+    network_mode: container:mullvad-client
     restart: unless-stopped
  ```
 
 Replace /path/to/qbittorrent-downloads with the directory you would like qBittorrent to store downloads.
-
-Make sure those PUID and GUID match the ID for your user and group. You can find these by simply typing "id" into terminal. If they don't match simply replace the PUID and GUID in the docker compose script with the ones you found in terminal.
 
 
 # Prowlarr Docker Config
