@@ -7,9 +7,11 @@ A complete guide to setting up a home media server with automated requests/downl
 Based on the [blog post](https://zacholland.net/a-complete-guide-to-setting-up-a-plex-home-media-server-with-automated-requests-downloads/) from Zac Holland. Most of the information is the same but I've added more details on the configuration side and will be adding an updated section on managing multiple HDDs.
 
 # Prerequisites
-This guide is written for Ubuntu Server 21.10. Most of it should work just fine on any distro, but if you're using a non-debian distro you'll have to look up distro-specific instructions for installing docker. Once installed though the rest of the guide should still work.
+
+This guide has been tested on Ubuntu Server 21.10. Most of it should work just fine on any distro, but if you're using a non-debian distro you'll have to look up distro-specific instructions for installing docker. Once installed though the rest of the guide should still work.
 
 # The Stack
+
 Here's the stack we'll be using. There will be a section describing the installation and configuration for each one of these :)
 
 **Docker** lets us run and isolate each of our services into a container. Everything for each of these services will live in the container except the configuration files which will live on our host.
@@ -28,17 +30,13 @@ Here's the stack we'll be using. There will be a section describing the installa
 
 ## Optional
 
-**Ombi** is a super simple web UI for allowing your users to send requests to Radarr and Sonarr
+**[jfa-go](https://github.com/hrfee/jfa-go)** is a user manager for Jellyfin that allows your users to sign up via an invite code and reset their passwords
 
-**jfa-go** is a user manager for Jellyfin that allows your users to sign up via an invite code and reset their passwords
+**[Organizr](https://github.com/causefx/Organizr)** is a dashboard for keeping track all of these web services
 
-**Organizr** is a dashboard for keeping track all of these web services
+**[Bazarr](https://wiki.bazarr.media/Getting-Started/Setup-Guide/)** is a tool for Sonarr and Radarr to download subtitles for your content
 
-**Bazarr** is a tool for Sonarr and Radarr to download subtitles for your content
-
-**nginx-proxy-manager** is a simple reverse proxy service for making Jellyfin accessible outside of your local network
-
-**Tdarr** is a tool for transcoding media files
+**[nginx-proxy-manager](https://nginxproxymanager.com/guide/#quick-setup)** is a simple reverse proxy service for making Jellyfin accessible outside of your local network
 
 # Installing Docker
 
@@ -192,28 +190,6 @@ Also make sure that user has read-write permissions for the media directories. S
 
 If you are running into issues, check the logs of the docker container or the logs in the web UI. It should tell you exactly where it’s having trouble. Then log into the user you set it to run as an attempt the same actions. See whats going on first hand.
 
-# Ombi Docker Config
-
-```
-  ombi:
-    image: ghcr.io/linuxserver/ombi
-    container_name: ombi
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=EST
-      - BASE_URL=/ombi #optional
-    volumes:
-      - ~/docker/config/ombi:/config
-    ports:
-      - 3579:3579
-    restart: unless-stopped
- ```
-
-Make sure those PUID and GUID match the ID for your user and group. You can find these by simply typing "id" into terminal. If they don't match simply replace the PUID and GUID in the docker compose script with the ones you found in terminal.
-
-This will open Ombi on port 3579. Use a reverse proxy such as nginx to make it accessible outside of your local network.
-
 # Start it up!
 
 Run this command to boot up all your services! Remember to go back and update your qBittorrent settings after this.
@@ -231,7 +207,6 @@ radarr       @ http://localhost:7878
 prowlarr     @ http://localhost:9696
 qbittorrent  @ http://localhost:8080
 jellyfin     @ http://localhost:8096
-ombi         @ http://localhost:3579
 ```
 
 # Configuration
@@ -240,8 +215,9 @@ ombi         @ http://localhost:3579
 
 1. Navigate to http://localhost:8096
 2. Follow the setup wizard
-3. Add libraries for TV and Movies. The library folders should be located at /media/movies and /media/tv.
+3. Add libraries for TV and Movies. The library folders should be located at /media/movies and /media/tv respectively.
 
+See [documentation](https://jellyfin.org/docs/general/quick-start.html) for more information
 ## qBittorrent
 
 ### Set Download Directory
@@ -253,14 +229,12 @@ ombi         @ http://localhost:3579
 
 ### Bind qBittorrent to VPN
 
-By binding qBittorrent to the VPN network interface you don't have to worry about torrents accidently slipping through to your ISP. With this enabled your downloads will automatically stop if you disconenct from your VPN instead of defaulting to your ISP's network.
-
-This of course requires an active VPN subscription and for your server to be connected to it (Not covered in this guide)
+This will ensure that qBittorrent only downloads over your VPN connection.
 
 1. Navigate to qBittorrent Web UI at http://localhost:8080
 2. Click on Tool > Options
 3. Go to the Advanced tab
-4. Change Network interface from Any to the interface corresponding to your VPN (most likely tun0)
+4. Change Network interface from Any to the interface corresponding to your VPN (probably something like tun0)
 
 ### Change default login (Optional)
 
@@ -272,7 +246,7 @@ By default the login to the web UI is just "admin" "adminadmin". Personally I do
 
 ## Prowlarr
 
-Coming soon
+See [Prowlarr Quick Start Guide](https://wiki.servarr.com/prowlarr/quick-start-guide)
 
 ## Sonarr / Radarr
 
@@ -360,7 +334,9 @@ Click Add Server
 
 Then make sure to click "Load Libraries" and check all relevant ones.
 
-### Create user profiles
+(Optional)
+
+### OMBI 
 
 Finally you will want to create Ombi accounts for your users so they can submit requests. You can do this manually under the "User Management" tab, but that requires you to manually create an account for everyone connected to your Plex.
 
