@@ -1,4 +1,4 @@
-# automated-media-server-guide
+# automated-jellyfin-guide
 
 A complete guide to setting up a home media server with automated requests/downloads
 
