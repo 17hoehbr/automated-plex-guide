@@ -24,6 +24,8 @@ Here's the stack we'll be using. There will be a section describing the installa
 
 ## Optional
 
+The following are additional services I recommend. Since the scope of this guide is mainly about just getting started for new users, I'm not going to go much into how to set them up. However the setup process will generally be very similar.
+
 **[jfa-go](https://github.com/hrfee/jfa-go)** is a user manager for Jellyfin that allows your users to sign up via an invite code and reset their passwords
 
 **[Jellyseerr](https://github.com/Fallenbagel/jellyseerr)** is an application for managing requests for your media library. It is a fork of Overseerr built to bring support for Jellyfin servers!
@@ -332,3 +334,13 @@ I like having this setting enabled to keep my media folders nice and organized.
 7. Select "Any" under Quality Profiles
 8. Select /movies under Default Root Folders
 9. Select Physical / Web under Default Minimum Availability. Optionally you could select and earlier setting in case a movie gets leaked before being released to DVD but you will more often than not probably just get cam recordings.
+
+# Advanced Configuration
+
+**Multiple Hard Drives**
+
+As your media library grows, you will eventually run into the issue of storage space. The obvious solution is to get more hard drives, but it's less obvious how to distribute files across multiple drives with this setup. The best solution in my experience is to use [MergerFS](https://github.com/trapexit/mergerfs). MergerFS essentially combines multiple hard drives into a single folder on your filesystem. Then you can point your '/path/to/media' folder to the MergerFS folder. As opposed to traditional solutions such as RAID, MergerFS allows any combination of drives regardless of brand or storage capacity. However, it does not provide any redundancy. It is possible to combine MergerFS with [SnapRAID](https://www.snapraid.it/) if you'd like some extra redundancy, but personally I have never used it.
+
+**Quality Control**
+
+The website [TRaSH Guides](https://trash-guides.info/Radarr/) is an amazing resource for setting up quality profile settings. By following these instructions you can achieve fine tuned quality control, such as prioritizing downloads from specific release groups, specific file formats (ex. prefer h.265 over h.264), and set file size limits.
