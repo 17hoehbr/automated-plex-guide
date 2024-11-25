@@ -32,7 +32,7 @@ Here's the stack we'll be using. There will be a section describing the installa
 
 **[jfa-go](https://github.com/hrfee/jfa-go)** is a user manager for Jellyfin that allows your users to sign up via an invite code and reset their passwords
 
-**[Organizr](https://github.com/causefx/Organizr)** is a dashboard for keeping track all of these web services
+**[Homepage](https://github.com/gethomepage/homepage)** is a dashboard for keeping track all of these web services
 
 **[Bazarr](https://wiki.bazarr.media/Getting-Started/Setup-Guide/)** is a tool for Sonarr and Radarr to download subtitles for your content
 
@@ -41,42 +41,32 @@ Here's the stack we'll be using. There will be a section describing the installa
 # Installing Docker
 
 
+Installation steps will vary based on distro. I recommend following the instructions in the [Docker documentation](https://docs.docker.com/engine/install/).
+
+You will also need to install Docker Compose. Fortunantely these instructions are the same for most distros:
+
 ```
-sudo apt update
-sudo apt install apt-transport-https ca-certificates curl gnupg-agent software-properties-common
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-sudo apt update
-sudo apt install docker-ce docker-ce-cli containerd.io
-sudo usermod -aG docker $USER
+sudo curl -SL https://github.com/docker/compose/releases/download/v2.30.3/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
 ```
 
-To verify that the docker installation was successful, run the following command:
-```
-docker container run hello-world
-```
-
-The output should look something like [this](https://linuxize.com/post/how-to-install-and-use-docker-on-ubuntu-20-04/docker-hello-world_hu0e93396502d67b4a7c43a5ce3cac5c2c_75442_768x0_resize_q75_lanczos.jpg)
-
-I also like to keep my configs in one easy place, so let’s create a folder to hold our docker container configs and create our docker-compose.yml file
+I like to keep my configs in one easy place, so let’s create a folder to hold our docker container configs and create our docker-compose.yml file
 
 ```
 mkdir ~/docker
 touch ~/docker/docker-compose.yml
 ```
 
-And add this to your docker-compose file. We will be filling in the services in the coming steps. If you are confused on how to add the services or how your file should look, [here is a good resource on docker-compose](https://docs.docker.com/compose/compose-file/compose-file-v2/).
+And add this to the top of your docker-compose file. We will be filling in the services in the coming steps. If you are confused on how to add the services or how your file should look, [here is a good resource on docker-compose]([https://docs.docker.com/compose/compose-file/compose-file-v2/](https://docs.docker.com/reference/compose-file/)).
 
 ```
 ---
-version: "2.1"
 services:
-
 ```
 
 # Jellyfin Docker Config
 
-Add the following lines to ~/docker/docker-compose.yml under "services:"
+Add the following lines to ~/docker/docker-compose.yml under "services:" Pay close attention to the indentations.
 
 ```
   jellyfin:
@@ -86,29 +76,63 @@ Add the following lines to ~/docker/docker-compose.yml under "services:"
       - PUID=1000
       - PGID=1000
     volumes:
-      - ~/docker/config/jellyfin:/config
+      - ~/docker/jellyfin:/config
       - /path/to/media:/media
     ports:
       - 8096:8096
     restart: unless-stopped
 ```
 
-This will start your Jellyfin server on port 8096, and add the volumes ~/docker/config/jellyfin and /path/to/media onto the container.
+This will start your Jellyfin server on port 8096, and add the volumes ~/docker/jellyfin and /path/to/media onto the container.
 
 Replace /path/to/media to your media directory. Your media directory should contain subdirectories labelled "tv" and "movies".
 
-Make sure those PUID and GUID match the ID for your user and group. You can find these by simply typing "id" into terminal. If they don't match simply replace the PUID and GUID in the docker compose script with the ones you found in terminal.
+Make sure those PUID and GUID match the ID for your user and group. You can find these by simply typing "id" into terminal. If they don't match replace the PUID and GUID in the docker compose script with the ones you found in terminal.
 
 # VPN Docker Config
 
-These instructions will vary depending on your VPN provider.
+We will use Glutun to setup your VPN connection in a Docker container. This way, services that rely on the VPN such as qbittorrent can access it while the host and public facing services do not.
 
+The exact configuration will vary based on which VPN provider you use. I recommend one that allows for port forwarding, as it will allow you to seed more reliably. This may not be important if you only use public trackers, but most private trackers are strict about maintaining a good seeding ratio. I will leave this shell for you to fill in with your VPN info. For more information on how to set it up, please see the [Glutun documentation](https://github.com/qdm12/gluetun).
 
-
+```
+  gluetun:
+    image: qmcgaw/gluetun
+    # container_name: gluetun
+    # line above must be uncommented to allow external containers to connect.
+    # See https://github.com/qdm12/gluetun-wiki/blob/main/setup/connect-a-container-to-gluetun.md#external-container-to-gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    ports:
+      - 8888:8888/tcp # HTTP proxy
+      - 8388:8388/tcp # Shadowsocks
+      - 8388:8388/udp # Shadowsocks
+      - 8080:8080 # qbittorrent
+      - 9696:9696 # prowlarr
+    volumes:
+      - /yourpath:/gluetun
+    environment:
+      # See https://github.com/qdm12/gluetun-wiki/tree/main/setup#setup
+      - PUID=1000
+      - PGID=1000
+      - VPN_SERVICE_PROVIDER=ivpn
+      - VPN_TYPE=openvpn
+      # OpenVPN:
+      - OPENVPN_USER=
+      - OPENVPN_PASSWORD=
+      # Wireguard:
+      # - WIREGUARD_PRIVATE_KEY=wOEI9rqqbDwnN8/Bpp22sVz48T71vJ4fYmFWujulwUU=
+      # - WIREGUARD_ADDRESSES=10.64.222.21/32
+      # Timezone for accurate log times
+      - TZ=
+      # Server list updater
+      # See https://github.com/qdm12/gluetun-wiki/blob/main/setup/servers.md#update-the-vpn-servers-list
+      - UPDATER_PERIOD=
+```
 
 # qBittorrent Docker Config
-
-# Note to self: update with VPN configuration
 
 ```
 qbittorrent:
@@ -121,11 +145,15 @@ qbittorrent:
     volumes:
       - ~/docker/config/qbittorrent:/config
       - /path/to/qbittorrent-downloads:/downloads
-    network_mode: container:mullvad-client
+    network_mode: service:glutun
     restart: unless-stopped
  ```
 
 Replace /path/to/qbittorrent-downloads with the directory you would like qBittorrent to store downloads.
+
+We added network_mode: service:glutun here so that all qbittorrent traffic gets routed through the VPN container.
+
+Notice that we did not add the ports: section. When routing network traffic through another container, the ports have to be defined in the VPN container instead.
 
 
 # Prowlarr Docker Config
@@ -140,14 +168,13 @@ Replace /path/to/qbittorrent-downloads with the directory you would like qBittor
       - TZ=America/New_York
     volumes:
       - ~/docker/config/prowlarr:/config
+    network_mode: service:glutun
     ports:
       - 9696:9696
     restart: unless-stopped
 ```
 
 This is super basic and just boots your Prowlarr service on port 9696. Doesn’t need much else!
-
-Make sure those PUID and GUID match the ID for your user and group. You can find these by simply typing "id" into terminal. If they don't match simply replace the PUID and GUID in the docker compose script with the ones you found in terminal.
 
 
 # Sonarr & Radarr Docker Config
@@ -184,11 +211,7 @@ Make sure those PUID and GUID match the ID for your user and group. You can find
  ```
 Replace /path/to/media/tv & /path/to/media/movies with the directories you created during the Plex docker setup. Replace /path/to/qbittorrent-downloads with the directory you created during the qBittorrent docker setup.
 
-Make sure those PUID and GUID match the ID for your user and group. You can find these by simply typing "id" into terminal. If they don't match simply replace the PUID and GUID in the docker compose script with the ones you found in terminal.
-
-Also make sure that user has read-write permissions for the media directories. Sonarr and Radarr are going to try to be creating folders and files in there when they copy or hard link files over. You can do this with the following command: ```chmod -r +rw /path/to/media```
-
-If you are running into issues, check the logs of the docker container or the logs in the web UI. It should tell you exactly where it’s having trouble. Then log into the user you set it to run as an attempt the same actions. See whats going on first hand.
+Make sure that user has read-write permissions for the media directories. Sonarr and Radarr are going to try to be creating folders and files in there when they copy or hard link files over. You can do this with the following command: ```chmod -r +rw /path/to/media```
 
 # Start it up!
 
@@ -285,18 +308,6 @@ I like having this setting enabled to keep my media folders nice and organized.
 2. Check the checkbox under "Rename Episodes/Movies"
 3. (Optional) Configure episode format by preference
 
-## Ombi
-
-### Initial Setup
-
-When you first navigate to the Ombi Web UI it will walk you through a setup wizard.
-
-For Media Server select Plex and login with your Plex credentials.
-
-You will also need to create a local admin account.
-
-(Optional) Customize to your preference.
-
 ### Connect Sonarr and Radarr
 
 **Sonarr:**
@@ -335,12 +346,3 @@ Click Add Server
 Then make sure to click "Load Libraries" and check all relevant ones.
 
 (Optional)
-
-### OMBI 
-
-Finally you will want to create Ombi accounts for your users so they can submit requests. You can do this manually under the "User Management" tab, but that requires you to manually create an account for everyone connected to your Plex.
-
-Instead you can allow users to authenticate with their Plex login by going to Settings > Configuration > Authentication and selecting "Enable Plex OAuth". This way anyone who has access to your Plex can simply login with their Plex credentials and make requests.
-
-
-Once the setup is complete you can login with either the local account you made earlier or your Plex account.
