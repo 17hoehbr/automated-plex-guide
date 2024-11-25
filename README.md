@@ -1,6 +1,4 @@
-# automated-media-server-guide (WIP)
-
-# In the process of updating
+# automated-media-server-guide
 
 A complete guide to setting up a home media server with automated requests/downloads
 
