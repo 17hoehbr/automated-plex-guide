@@ -2,8 +2,6 @@
 
 A complete guide to setting up a home media server with automated requests/downloads
 
-Based on the [blog post](https://zacholland.net/a-complete-guide-to-setting-up-a-plex-home-media-server-with-automated-requests-downloads/) from Zac Holland. Most of the information is the same but I've added more details on the configuration side and will be adding an updated section on managing multiple HDDs.
-
 # The Stack
 
 Here's the stack we'll be using. There will be a section describing the installation and configuration for each one of these
