@@ -6,13 +6,9 @@ A complete guide to setting up a home media server with automated requests/downl
 
 Based on the [blog post](https://zacholland.net/a-complete-guide-to-setting-up-a-plex-home-media-server-with-automated-requests-downloads/) from Zac Holland. Most of the information is the same but I've added more details on the configuration side and will be adding an updated section on managing multiple HDDs.
 
-# Prerequisites
-
-This guide has been tested on Ubuntu Server 21.10. Most of it should work just fine on any distro, but if you're using a non-debian distro you'll have to look up distro-specific instructions for installing docker. Once installed though the rest of the guide should still work.
-
 # The Stack
 
-Here's the stack we'll be using. There will be a section describing the installation and configuration for each one of these :)
+Here's the stack we'll be using. There will be a section describing the installation and configuration for each one of these
 
 **Docker** lets us run and isolate each of our services into a container. Everything for each of these services will live in the container except the configuration files which will live on our host.
 
@@ -20,7 +16,7 @@ Here's the stack we'll be using. There will be a section describing the installa
 
 **qBittorrent** is a torrent client. Transmission and Deluge are also popular choices but I chose qBittorrent because you can easily configure it to only operate over the VPN connection.
 
-**openvpn-client** is a VPN running in docker. This will allow you to connect the qBittorrent container to your VPN without having to put your entire system behind it
+**Glutun** is a VPN running in docker. This will allow you to connect the qBittorrent container to your VPN without having to put your entire system behind it
 
 **Prowlarr** is a tool that Sonarr and Radarr use to search indexers and trackers for torrents
 
@@ -32,14 +28,17 @@ Here's the stack we'll be using. There will be a section describing the installa
 
 **[jfa-go](https://github.com/hrfee/jfa-go)** is a user manager for Jellyfin that allows your users to sign up via an invite code and reset their passwords
 
+**[Jellyseerr](https://github.com/Fallenbagel/jellyseerr)** is an application for managing requests for your media library. It is a fork of Overseerr built to bring support for Jellyfin servers!
+
 **[Homepage](https://github.com/gethomepage/homepage)** is a dashboard for keeping track all of these web services
 
 **[Bazarr](https://wiki.bazarr.media/Getting-Started/Setup-Guide/)** is a tool for Sonarr and Radarr to download subtitles for your content
 
+**[Unmanic](https://docs.unmanic.app/)** is a great tool for optimising media files. For example, you can use it to remove unneccessary subtitles/audio tracks and transcode media to your desired format.
+
 **[nginx-proxy-manager](https://nginxproxymanager.com/guide/#quick-setup)** is a simple reverse proxy service for making Jellyfin accessible outside of your local network
 
 # Installing Docker
-
 
 Installation steps will vary based on distro. I recommend following the instructions in the [Docker documentation](https://docs.docker.com/engine/install/).
 
@@ -60,7 +59,6 @@ touch ~/docker/docker-compose.yml
 And add this to the top of your docker-compose file. We will be filling in the services in the coming steps. If you are confused on how to add the services or how your file should look, [here is a good resource on docker-compose]([https://docs.docker.com/compose/compose-file/compose-file-v2/](https://docs.docker.com/reference/compose-file/)).
 
 ```
----
 services:
 ```
 
@@ -76,7 +74,7 @@ Add the following lines to ~/docker/docker-compose.yml under "services:" Pay clo
       - PUID=1000
       - PGID=1000
     volumes:
-      - ~/docker/jellyfin:/config
+      - ./jellyfin:/config
       - /path/to/media:/media
     ports:
       - 8096:8096
@@ -112,7 +110,7 @@ The exact configuration will vary based on which VPN provider you use. I recomme
       - 8080:8080 # qbittorrent
       - 9696:9696 # prowlarr
     volumes:
-      - /yourpath:/gluetun
+      - ./glutun:/gluetun
     environment:
       # See https://github.com/qdm12/gluetun-wiki/tree/main/setup#setup
       - PUID=1000
@@ -143,7 +141,7 @@ qbittorrent:
       - PGID=1000
       - WEBUI_PORT=8080
     volumes:
-      - ~/docker/config/qbittorrent:/config
+      - ./qbittorrent:/config
       - /path/to/qbittorrent-downloads:/downloads
     network_mode: service:glutun
     restart: unless-stopped
@@ -167,7 +165,7 @@ Notice that we did not add the ports: section. When routing network traffic thro
       - PGID=1000
       - TZ=America/New_York
     volumes:
-      - ~/docker/config/prowlarr:/config
+      - ./prowlarr:/config
     network_mode: service:glutun
     ports:
       - 9696:9696
@@ -188,7 +186,7 @@ This is super basic and just boots your Prowlarr service on port 9696. Doesn’t
       - PGID=1000
       - TZ=EST
     volumes:
-      - ~/docker/config/sonarr:/config
+      - ./sonarr:/config
       - /path/to/media/tv:/tv
       - /path/to/qbittorrent-downloads:/downloads
     ports:
@@ -202,7 +200,7 @@ This is super basic and just boots your Prowlarr service on port 9696. Doesn’t
       - PGID=1000
       - TZ=EST
     volumes:
-      - ~/docker/config/radarr:/config
+      - ./radarr:/config
       - /path/to/media/movies:/movies
       - /path/to/qbittorrent-downloads:/downloads
     ports:
@@ -241,6 +239,7 @@ jellyfin     @ http://localhost:8096
 3. Add libraries for TV and Movies. The library folders should be located at /media/movies and /media/tv respectively.
 
 See [documentation](https://jellyfin.org/docs/general/quick-start.html) for more information
+
 ## qBittorrent
 
 ### Set Download Directory
@@ -335,14 +334,3 @@ I like having this setting enabled to keep my media folders nice and organized.
 7. Select "Any" under Quality Profiles
 8. Select /movies under Default Root Folders
 9. Select Physical / Web under Default Minimum Availability. Optionally you could select and earlier setting in case a movie gets leaked before being released to DVD but you will more often than not probably just get cam recordings.
-
-
-### Connect Jellyfin
-
-Settings > Media Server > Jellyfin
-
-Click Add Server
-
-Then make sure to click "Load Libraries" and check all relevant ones.
-
-(Optional)
