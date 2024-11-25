@@ -1,62 +1,84 @@
----
-version: "2.1"
 services:
-  plex:
-    image: ghcr.io/linuxserver/plex
-    container_name: plex
-    network_mode: host
+  jellyfin:
+    image: ghcr.io/linuxserver/jellyfin
+    container_name: jellyfin
     environment:
       - PUID=1000
       - PGID=1000
-      - VERSION=docker
-      - PLEX_CLAIM= #optional
     volumes:
-      - ~/docker/config/plex:/config
+      - ./jellyfin:/config
       - /path/to/media:/media
+    ports:
+      - 8096:8096
     restart: unless-stopped
-qbittorrent:
-    image: ghcr.io/linuxserver/qbittorrent
-    container_name: qbittorrent
-    network_mode: "host"
+  gluetun:
+    image: qmcgaw/gluetun
+    # container_name: gluetun
+    # line above must be uncommented to allow external containers to connect.
+    # See https://github.com/qdm12/gluetun-wiki/blob/main/setup/connect-a-container-to-gluetun.md#external-container-to-gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    ports:
+      - 8888:8888/tcp # HTTP proxy
+      - 8388:8388/tcp # Shadowsocks
+      - 8388:8388/udp # Shadowsocks
+      - 8080:8080 # qbittorrent
+      - 9696:9696 # prowlarr
+    volumes:
+      - ./glutun:/gluetun
+    environment:
+      # See https://github.com/qdm12/gluetun-wiki/tree/main/setup#setup
+      - PUID=1000
+      - PGID=1000
+      - VPN_SERVICE_PROVIDER=ivpn
+      - VPN_TYPE=openvpn
+      # OpenVPN:
+      - OPENVPN_USER=
+      - OPENVPN_PASSWORD=
+      # Wireguard:
+      # - WIREGUARD_PRIVATE_KEY=wOEI9rqqbDwnN8/Bpp22sVz48T71vJ4fYmFWujulwUU=
+      # - WIREGUARD_ADDRESSES=10.64.222.21/32
+      # Timezone for accurate log times
+      - TZ=
+      # Server list updater
+      # See https://github.com/qdm12/gluetun-wiki/blob/main/setup/servers.md#update-the-vpn-servers-list
+      - UPDATER_PERIOD=
+  qbittorrent:
+      image: ghcr.io/linuxserver/qbittorrent
+      container_name: qbittorrent
+      environment:
+        - PUID=1000
+        - PGID=1000
+        - WEBUI_PORT=8080
+      volumes:
+        - ./qbittorrent:/config
+        - /path/to/qbittorrent-downloads:/downloads
+      network_mode: service:glutun
+      restart: unless-stopped
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:develop
+    container_name: prowlarr
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=America\New_York
-      - UMASK_SET=022
-      - WEBUI_PORT=8080
+      - TZ=America/New_York
     volumes:
-      - ~/docker/config/qbittorrent:/config
-      - /path/to/qbittorrent-downloads:/downloads
+      - ./prowlarr:/config
+    network_mode: service:glutun
     ports:
-      - 6881:6881
-      - 6881:6881/udp
-      - 8080:8080
-    restart: unless-stopped
-  jackett:
-    image: ghcr.io/linuxserver/jackett
-    container_name: jackett
-    network_mode: "host"
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=EST
-      - AUTO_UPDATE=true #optional
-      - RUN_OPTS=<run options here> #optional
-    volumes:
-      - ~/docker/config/jackett:/config
-    ports:
-      - 9117:9117
+      - 9696:9696
     restart: unless-stopped
   sonarr:
     image: ghcr.io/linuxserver/sonarr
     container_name: sonarr
-    network_mode: "host"
     environment:
       - PUID=1000
       - PGID=1000
       - TZ=EST
     volumes:
-      - ~/docker/config/sonarr:/config
+      - ./sonarr:/config
       - /path/to/media/tv:/tv
       - /path/to/qbittorrent-downloads:/downloads
     ports:
@@ -65,42 +87,14 @@ qbittorrent:
   radarr:
     image: ghcr.io/linuxserver/radarr
     container_name: radarr
-    network_mode: "host"
     environment:
       - PUID=1000
       - PGID=1000
       - TZ=EST
     volumes:
-      - ~/docker/config/radarr:/config
+      - ./radarr:/config
       - /path/to/media/movies:/movies
       - /path/to/qbittorrent-downloads:/downloads
     ports:
       - 7878:7878
-    restart: unless-stopped
-  ombi:
-    image: ghcr.io/linuxserver/ombi
-    container_name: ombi
-    network_mode: "host"
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=EST
-      - BASE_URL=/ombi #optional
-    volumes:
-      - ~/docker/config/ombi:/config
-    ports:
-      - 3579:3579
-    restart: unless-stopped
-  tautulli:
-    image: ghcr.io/linuxserver/tautulli
-    container_name: tautulli
-    network_mode: "host"
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=EST
-    volumes:
-      - ~/docker/config/tautulli:/config
-    ports:
-      - 8181:8181
     restart: unless-stopped
