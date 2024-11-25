@@ -8,7 +8,14 @@ Here's the stack we'll be using. There will be a section describing the installa
 
 **Docker** lets us run and isolate each of our services into a container. Everything for each of these services will live in the container except the configuration files which will live on our host.
 
-**Jellyfin** is a completely open sourced alternative to Plex. The interface is not quite as polished and client support is slightly limited, however all of it's features are completely free and users can contribute to or modify the code as they see fit. This can allow for implementation of features or changes to the server that could not be achieved with Plex.
+**Jellyfin** is an open source media server. It is an alternative to the more popular Plex media server. Previous iterations of this guide had instructions for Plex, but I have since gone all in on Jellyfin for a number of reasons.
+
+1) The server runs entirely on your local network whereas Plex servers use a proprietary authentication system.
+2) In recent years Plex has increasingly incorporated annoying features such as their free built in streaming service. Some may find this useful, but personally I find it to be too much clutter.
+3) There is speculation that Plex may be [cracking down](https://cordcuttersnews.com/plex-is-cracking-down-on-pirated-content/) on pirated content.
+4) Jellyfin is open source, and all of it's features are completely free. No need for a Plex pass.
+
+That said, Jellyfin lags behind Plex in a few features and especially in client support. If you decide to stick with Plex, most of this guide will still work, you'll just need to swap out Jellyfin, switch out Jellyseer and Jfa-Go for Plex equivilents, and update the connections to Sonnar/Radarr/etc.
 
 **qBittorrent** is a torrent client. Transmission and Deluge are also popular choices but I chose qBittorrent because you can easily configure it to only operate over the VPN connection.
 
